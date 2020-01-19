@@ -17,6 +17,7 @@
 #include "clang/Parse/Parser.h"
 #include "clang/Parse/RAIIObjectsForParser.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Sema/Lookup.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Scope.h"
 #include "llvm/Support/TimeProfiler.h"
@@ -1379,6 +1380,7 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
 /// base-specifier? ('typename' and 'template' are unneeded and disallowed
 /// in those contexts.)
 void Parser::AnnotateTemplateIdTokenAsType(CXXScopeSpec &SS,
+                                           ImplicitTypenameContext AllowImplicitTypename,
                                            bool IsClassName) {
   assert(Tok.is(tok::annot_template_id) && "Requires template-id tokens");
 
@@ -1402,7 +1404,8 @@ void Parser::AnnotateTemplateIdTokenAsType(CXXScopeSpec &SS,
                                   TemplateArgsPtr,
                                   TemplateId->RAngleLoc,
                                   /*IsCtorOrDtorName*/false,
-                                  IsClassName);
+                                  IsClassName,
+                                  AllowImplicitTypename);
   // Create the new "type" annotation token.
   Tok.setKind(tok::annot_typename);
   setTypeAnnotation(Tok, Type.isInvalid() ? nullptr : Type.get());

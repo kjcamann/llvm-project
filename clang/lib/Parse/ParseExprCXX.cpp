@@ -1302,7 +1302,8 @@ ExprResult Parser::ParseLambdaExpressionAfterIntroducer(
           CurTemplateDepthTracker.getOriginalDepth());
 
       ParseParameterDeclarationClause(D.getContext(), Attr, ParamInfo,
-                                      EllipsisLoc);
+                                      EllipsisLoc, D.getCXXScopeSpec().isSet() &&
+                                      D.isFunctionDeclaratorAFunctionDeclaration());
       // For a generic lambda, each 'auto' within the parameter declaration 
       // clause creates a template type parameter, so increment the depth.
       // If we've parsed any explicit template parameters, then the depth will
@@ -1539,7 +1540,8 @@ ExprResult Parser::ParseCXXCasts() {
 
   // Parse the common declaration-specifiers piece.
   DeclSpec DS(AttrFactory);
-  ParseSpecifierQualifierList(DS);
+  ParseSpecifierQualifierList(DS, /*AccessSpecifier=*/AS_none,
+                              DeclSpecContext::DSC_type_specifier);
 
   // Parse the abstract-declarator, if present.
   Declarator DeclaratorInfo(DS, DeclaratorContext::TypeNameContext);
@@ -2231,8 +2233,9 @@ void Parser::ParseCXXSimpleTypeSpecifier(DeclSpec &DS) {
 ///   type-specifier-seq: [C++ 8.1]
 ///     type-specifier type-specifier-seq[opt]
 ///
-bool Parser::ParseCXXTypeSpecifierSeq(DeclSpec &DS) {
-  ParseSpecifierQualifierList(DS, AS_none, DeclSpecContext::DSC_type_specifier);
+bool Parser::ParseCXXTypeSpecifierSeq(DeclSpec &DS, DeclaratorContext Context) {
+  ParseSpecifierQualifierList(DS, AS_none,
+                              getDeclSpecContextFromDeclaratorContext(Context));
   DS.Finish(Actions, Actions.getASTContext().getPrintingPolicy());
   return false;
 }
@@ -2645,7 +2648,8 @@ bool Parser::ParseUnqualifiedIdOperator(CXXScopeSpec &SS, bool EnteringContext,
 
   // Parse the type-specifier-seq.
   DeclSpec DS(AttrFactory);
-  if (ParseCXXTypeSpecifierSeq(DS)) // FIXME: ObjectType?
+  if (ParseCXXTypeSpecifierSeq(
+          DS, DeclaratorContext::ConversionIdContext)) // FIXME: ObjectType?
     return true;
 
   // Parse the conversion-declarator, which is merely a sequence of
@@ -3299,7 +3303,7 @@ ExprResult Parser::ParseRequiresExpression() {
       DiagnosticErrorTrap Trap(Diags);
       ParseParameterDeclarationClause(DeclaratorContext::RequiresExprContext,
                                       FirstArgAttrs, LocalParameters,
-                                      EllipsisLoc);
+                                      EllipsisLoc, true);
       if (EllipsisLoc.isValid())
         Diag(EllipsisLoc, diag::err_requires_expr_parameter_list_ellipsis);
       for (auto &ParamInfo : LocalParameters)

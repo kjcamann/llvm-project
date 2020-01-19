@@ -34,12 +34,14 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <memory>
 
 namespace clang {
   class ASTContext;
   class CXXRecordDecl;
   class TypeLoc;
   class LangOptions;
+  class LookupResult;
   class IdentifierInfo;
   class NamespaceAliasDecl;
   class NamespaceDecl;
@@ -1776,6 +1778,12 @@ enum class DeclaratorContext {
     RequiresExprContext   // C++2a requires-expression.
 };
 
+// Describes whether the current context is a context where an implicit
+// typename is allowed (C++2a [temp.res]p5]).
+enum class ImplicitTypenameContext {
+  Never,
+  Yes,
+};
 
 /// Information about one declarator, including the parsed type
 /// information and the identifier.
@@ -1874,22 +1882,16 @@ private:
   /// this declarator as a parameter pack.
   SourceLocation EllipsisLoc;
 
+  /// Lookup result of declarator, if any.
+  std::unique_ptr<LookupResult> PrevLookupResult;
+
   friend struct DeclaratorChunk;
 
 public:
-  Declarator(const DeclSpec &ds, DeclaratorContext C)
-      : DS(ds), Range(ds.getSourceRange()), Context(C),
-        InvalidType(DS.getTypeSpecType() == DeclSpec::TST_error),
-        GroupingParens(false), FunctionDefinition(FDK_Declaration),
-        Redeclaration(false), Extension(false), ObjCIvar(false),
-        ObjCWeakProperty(false), InlineStorageUsed(false),
-        Attrs(ds.getAttributePool().getFactory()), AsmLabel(nullptr),
-        TrailingRequiresClause(nullptr),
-        InventedTemplateParameterList(nullptr) {}
+  Declarator(const DeclSpec &ds, DeclaratorContext C);
 
-  ~Declarator() {
-    clear();
-  }
+  ~Declarator();
+
   /// getDeclSpec - Return the declaration-specifier that this declarator was
   /// declared with.
   const DeclSpec &getDeclSpec() const { return DS; }
@@ -2570,6 +2572,10 @@ public:
 
   void setRedeclaration(bool Val) { Redeclaration = Val; }
   bool isRedeclaration() const { return Redeclaration; }
+
+  void setPrevLookupResult(std::unique_ptr<LookupResult> LR);
+  LookupResult consumePrevLookupResult();
+  bool hasPrevLookupResult() const { return (bool)PrevLookupResult; }
 };
 
 /// This little struct is used to capture information about

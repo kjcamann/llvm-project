@@ -1142,7 +1142,8 @@ TypeResult Parser::ParseBaseTypeSpecifier(SourceLocation &BaseLoc,
     if (TemplateId->Kind == TNK_Type_template ||
         TemplateId->Kind == TNK_Dependent_template_name ||
         TemplateId->Kind == TNK_Undeclared_template) {
-      AnnotateTemplateIdTokenAsType(SS, /*IsClassName*/true);
+      AnnotateTemplateIdTokenAsType(SS, ImplicitTypenameContext::Never,
+                                    /*IsClassName*/true);
 
       assert(Tok.is(tok::annot_typename) && "template-id -> type failed");
       ParsedType Type = getTypeAnnotation(Tok);
@@ -1193,7 +1194,8 @@ TypeResult Parser::ParseBaseTypeSpecifier(SourceLocation &BaseLoc,
                                 TemplateName))
       return true;
     if (TNK == TNK_Type_template || TNK == TNK_Dependent_template_name)
-      AnnotateTemplateIdTokenAsType(SS, /*IsClassName*/true);
+      AnnotateTemplateIdTokenAsType(SS, ImplicitTypenameContext::Never,
+                                    /*IsClassName*/true);
 
     // If we didn't end up with a typename token, there's nothing more we
     // can do.
@@ -1214,7 +1216,8 @@ TypeResult Parser::ParseBaseTypeSpecifier(SourceLocation &BaseLoc,
       *Id, IdLoc, getCurScope(), &SS, /*isClassName=*/true, false, nullptr,
       /*IsCtorOrDtorName=*/false,
       /*WantNontrivialTypeSourceInfo=*/true,
-      /*IsClassTemplateDeductionContext*/ false, &CorrectedII);
+      /*IsClassTemplateDeductionContext*/ false, ImplicitTypenameContext::Never,
+      &CorrectedII);
   if (!Type) {
     Diag(IdLoc, diag::err_expected_class_name);
     return true;
@@ -3522,7 +3525,8 @@ MemInitResult Parser::ParseMemInitializer(Decl *ConstructorDecl) {
     if (TemplateId && (TemplateId->Kind == TNK_Type_template ||
                        TemplateId->Kind == TNK_Dependent_template_name ||
                        TemplateId->Kind == TNK_Undeclared_template)) {
-      AnnotateTemplateIdTokenAsType(SS, /*IsClassName*/true);
+      AnnotateTemplateIdTokenAsType(SS, ImplicitTypenameContext::Never,
+                                    /*IsClassName*/true);
       assert(Tok.is(tok::annot_typename) && "template-id -> type failed");
       TemplateTypeTy = getTypeAnnotation(Tok);
       ConsumeAnnotationToken();

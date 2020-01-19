@@ -27,7 +27,7 @@ namespace PR12884_original {
       typedef int arg;
     };
     struct C {
-      typedef B::X<typename B::arg> x; // expected-error {{missing 'typename'}}
+      typedef B::X<typename B::arg> x; // expected-warning {{missing 'typename'}}
     };
   };
 

@@ -18,9 +18,11 @@
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Sema/Lookup.h"
 #include "clang/Sema/ParsedTemplate.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/SemaDiagnostic.h"
+#include "clang/Sema/Lookup.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include <cstring>
@@ -1387,6 +1389,32 @@ void UnqualifiedId::setOperatorFunctionId(SourceLocation OperatorLoc,
     if (SymbolLocations[I].isValid())
       EndLocation = SymbolLocations[I];
   }
+}
+
+
+Declarator::Declarator(const DeclSpec &ds, DeclaratorContext C)
+      : DS(ds), Range(ds.getSourceRange()), Context(C),
+        InvalidType(DS.getTypeSpecType() == DeclSpec::TST_error),
+        GroupingParens(false), FunctionDefinition(FDK_Declaration),
+        Redeclaration(false), Extension(false), ObjCIvar(false),
+        ObjCWeakProperty(false), InlineStorageUsed(false),
+        Attrs(ds.getAttributePool().getFactory()), AsmLabel(nullptr),
+        TrailingRequiresClause(nullptr), InventedTemplateParameterList(nullptr),
+        PrevLookupResult(nullptr) {}
+
+Declarator::~Declarator() {
+  clear();
+}
+
+void Declarator::setPrevLookupResult(std::unique_ptr<LookupResult> LR) {
+  PrevLookupResult = std::move(LR);
+}
+
+LookupResult Declarator::consumePrevLookupResult() {
+  assert(PrevLookupResult);
+  LookupResult LR = std::move(*PrevLookupResult);
+  PrevLookupResult.reset();
+  return std::move(LR);
 }
 
 bool VirtSpecifiers::SetSpecifier(Specifier VS, SourceLocation Loc,

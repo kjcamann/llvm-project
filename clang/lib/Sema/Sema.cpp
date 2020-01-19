@@ -41,6 +41,7 @@
 #include "clang/Sema/TypoCorrection.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/TimeProfiler.h"
 
 using namespace clang;
@@ -2340,4 +2341,31 @@ bool Sema::checkOpenCLDisabledDecl(const NamedDecl &D, const Expr &E) {
   IdentifierInfo *FnName = D.getIdentifier();
   return checkOpenCLDisabledTypeOrDecl(&D, E.getBeginLoc(), FnName,
                                        OpenCLDeclExtMap, 1, D.getSourceRange());
+}
+
+bool Sema::isDeclaratorFunctionLike(Declarator &D) {
+  assert(D.getCXXScopeSpec().isSet() &&
+         "can only be called for qualified names");
+  assert(!D.hasPrevLookupResult() && "we looked this up already");
+
+  auto LR = std::make_unique<LookupResult>(
+      *this, D.getIdentifier(), D.getBeginLoc(), LookupOrdinaryName,
+      forRedeclarationInCurContext());
+  DeclContext *DC = computeDeclContext(D.getCXXScopeSpec(),
+                                       !D.getDeclSpec().isFriendSpecified());
+  if (!DC)
+    return false;
+
+  LookupQualifiedName(*LR, DC);
+  bool Result = std::all_of(LR->begin(), LR->end(), [](Decl *Dcl) {
+    if (NamedDecl *ND = dyn_cast<NamedDecl>(Dcl)) {
+      ND = ND->getUnderlyingDecl();
+      return isa<FunctionDecl>(ND) || isa<FunctionTemplateDecl>(ND) ||
+             isa<UsingDecl>(ND);
+    }
+    return false;
+  });
+
+  D.setPrevLookupResult(std::move(LR));
+  return Result;
 }
